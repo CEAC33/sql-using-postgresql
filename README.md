@@ -232,12 +232,238 @@ SELECT COUNT(DISTINCT first_name) FROM actor;
 SELECT rental_id,return_date-rental_date FROM rental;
 ```
 
+## Intermediate SELECT Statements
 
+## Joining multiple tables together
 
+### Diagramming Table Relationships
 
+```sql
 
+```
 
+### Grabbing information from Two Tables
 
+```sql
+SELECT companyname,orderdate,shipcountry
+FROM orders
+JOIN customers ON customers.customerid=orders.customerid;
+
+SELECT firstname,lastname,orderdate
+FROM orders
+JOIN employees ON employees.employeeid=orders.employeeid;
+
+SELECT companyname,unitprice,unitsinstock
+FROM products
+JOIN suppliers ON products.supplierid=suppliers.supplierid;
+```
+
+### Grabbing information from multiple tables
+
+```sql
+SELECT companyname,orderdate,unitprice,quantity
+FROM orders
+JOIN order_details ON orders.orderid=order_details.orderid
+JOIN customers ON customers.customerid=orders.customerid;
+
+SELECT companyname, productname, orderdate, order_details.unitprice, quantity
+FROM orders
+JOIN order_details ON orders.orderid=order_details.orderid
+JOIN customers ON customers.customerid=orders.customerid
+JOIN products ON products.productid=order_details.productid;
+
+SELECT companyname, productname, categoryname,
+	     Orderdate, order_details.unitprice, quantity
+FROM orders
+JOIN order_details ON orders.orderid=order_details.orderid
+JOIN customers ON customers.customerid=orders.customerid
+JOIN products ON products.productid=order_details.productid
+JOIN categories ON categories.categoryid=products.categoryid;
+
+SELECT companyname, productname, categoryname,
+	    orderdate, order_details.unitprice, quantity
+FROM orders
+JOIN order_details ON orders.orderid=order_details.orderid
+JOIN customers ON customers.customerid=orders.customerid
+JOIN products ON products.productid=order_details.productid
+JOIN categories ON categories.categoryid=products.categoryid
+WHERE 	categoryname='Seafood' AND
+		order_details.unitprice*quantity >= 500;
+```
+
+### Left Joins
+
+```
+SELECT companyname, orderid
+FROM customers
+LEFT JOIN orders ON customers.customerid=orders.customerid;
+
+SELECT companyname, orderid
+FROM customers
+LEFT JOIN orders ON customers.customerid=orders.customerid
+WHERE orderid IS NULL;
+
+SELECT productname, orderid
+FROM products
+LEFT JOIN order_details ON products.productid=order_details.productid;
+
+SELECT productname, orderid
+FROM products
+LEFT JOIN order_details ON products.productid=order_details.productid
+WHERE orderid IS NULL;
+```
+
+### Right Joins
+
+```
+SELECT companyname, orderid
+FROM orders
+RIGHT JOIN customers ON customers.customerid=orders.customerid;
+
+SELECT companyname, orderid
+FROM orders
+RIGHT JOIN customers ON customers.customerid=orders.customerid
+WHERE orderid IS NULL;
+
+SELECT companyname, customercustomerdemo.customerid
+FROM customercustomerdemo
+RIGHT JOIN customers ON customers.customerid=customercustomerdemo.customerid;
+```
+
+## Grouping and Aggregation Functions
+
+### Group by
+
+```sql
+SELECT COUNT(*), country
+FROM customers
+GROUP BY country
+ORDER BY COUNT(*) DESC;
+
+SELECT COUNT(*),categoryname
+FROM categories
+JOIN products ON categories.categoryid=products.categoryid
+GROUP BY categoryname
+ORDER BY COUNT(*) DESC;
+
+SELECT productname,ROUND(AVG(quantity))
+FROM products
+JOIN order_details ON order_details.productid=products.productid
+GROUP BY productname
+ORDER BY AVG(quantity) DESC;
+
+SELECT COUNT(*),country
+FROM suppliers
+GROUP BY country
+ORDER BY COUNT(*) DESC;
+
+SELECT productname, SUM(quantity * order_details.unitprice) AS AmountBought
+FROM products
+JOIN order_details ON order_details.productid=products.productid
+JOIN orders ON orders.orderid=order_details.orderid
+WHERE orderdate BETWEEN '1997-01-01' AND '1997-12-31'
+GROUP BY productname
+ORDER BY AmountBought DESC;
+```
+
+### Use HAVING to Filter Groups
+
+```sql
+SELECT productname, SUM(quantity * order_details.unitprice) AS AmountBought
+FROM products
+JOIN order_details USING (productid)
+GROUP BY productname
+HAVING SUM(quantity * order_details.unitprice) <2000
+ORDER BY AmountBought ASC;
+
+SELECT companyname, SUM(quantity * order_details.unitprice) AS AmountBought
+FROM customers
+NATURAL JOIN orders
+NATURAL JOIN order_details
+GROUP BY companyname
+HAVING SUM(quantity * order_details.unitprice) >5000
+ORDER BY AmountBought DESC;
+
+SELECT companyname, SUM(quantity * order_details.unitprice) AS AmountBought
+FROM customers
+NATURAL JOIN orders
+NATURAL JOIN order_details
+WHERE orderdate BETWEEN '1997-01-01' AND '1997-6-30'
+GROUP BY companyname
+HAVING SUM(quantity * order_details.unitprice) >5000
+ORDER BY AmountBought DESC;
+```
+
+### Gropuping Sets
+
+```sql
+SELECT categoryname,productname,SUM(od.unitprice*quantity)
+FROM categories
+NATURAL JOIN products
+NATURAL JOIN order_details AS od
+GROUP BY GROUPING SETS  ((categoryname),(categoryname,productname))
+ORDER BY categoryname, productname;
+
+SELECT c.companyname AS buyer,s.companyname AS supplier,SUM(od.unitprice*quantity)
+FROM customers AS c
+NATURAL JOIN orders
+NATURAL JOIN order_details AS od
+JOIN products USING (productid)
+JOIN suppliers  AS s USING (supplierid)
+GROUP BY GROUPING SETS ((buyer),(buyer,supplier))
+ORDER BY buyer,supplier;
+
+SELECT companyname,categoryname,SUM(od.unitprice*quantity)
+FROM customers AS c
+NATURAL JOIN orders
+NATURAL JOIN order_details AS od
+JOIN products USING (productid)
+JOIN categories  AS s USING (categoryid)
+GROUP BY GROUPING SETS ((companyname),(companyname,categoryname))
+ORDER BY companyname,categoryname NULLS FIRST;
+```
+
+### Rollup
+
+```sql
+SELECT c.companyname,categoryname,productname,SUM(od.unitprice*quantity)
+FROM customers AS c
+NATURAL JOIN orders
+NATURAL JOIN order_details AS od
+JOIN products USING (productid)
+JOIN categories  USING (categoryid)
+GROUP BY ROLLUP(companyname, categoryname, productname);
+ORDER BY companyname,categoryname,productname
+
+SELECT s.companyname AS supplier, c.companyname AS buyer,productname, SUM(od.unitprice*quantity)
+FROM suppliers AS s
+JOIN products USING (supplierid)
+JOIN order_details AS od USING (productid)
+JOIN orders USING (orderid)
+JOIN customers AS c USING (customerid)
+GROUP BY ROLLUP(supplier, buyer, productname)
+ORDER BY supplier,buyer,productname;
+```
+
+### Cube - Rollup On Steroids
+
+```sql
+SELECT c.companyname,categoryname,productname,SUM(od.unitprice*quantity)
+FROM customers AS c
+NATURAL JOIN orders
+NATURAL JOIN order_details AS od
+JOIN products USING (productid)
+JOIN categories  USING (categoryid)
+GROUP BY CUBE (companyname, categoryname, productname);
+
+SELECT s.companyname AS supplier, c.companyname AS buyer,productname, SUM(od.unitprice*quantity)
+FROM suppliers AS s
+JOIN products USING (supplierid)
+JOIN order_details AS od USING (productid)
+JOIN orders USING (orderid)
+JOIN customers AS c USING (customerid)
+GROUP BY CUBE(supplier, buyer, productname);
+```
 
 
 
