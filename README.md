@@ -293,7 +293,7 @@ WHERE 	categoryname='Seafood' AND
 
 ### Left Joins
 
-```
+```sql
 SELECT companyname, orderid
 FROM customers
 LEFT JOIN orders ON customers.customerid=orders.customerid;
@@ -315,7 +315,7 @@ WHERE orderid IS NULL;
 
 ### Right Joins
 
-```
+```sql
 SELECT companyname, orderid
 FROM orders
 RIGHT JOIN customers ON customers.customerid=orders.customerid;
